@@ -209,7 +209,7 @@
              <!-- Catchment Size (Used by both modes) -->
             <div class="controls-section" id="catchment-controls">
                 <h3>Catchment Size</h3>
-                <div class="toggle-list">
+                <div id="catchment-radio-group" class="toggle-list">
                     <ul>
                         <li class="toggle-option"><input type="radio" id="grid-none" name="grid-toggle" value="none" checked><label for="grid-none">None</label></li>
                         <li class="toggle-option"><input type="radio" id="grid-1km" name="grid-toggle" value="1km"><label for="grid-1km">15min Catchment</label></li>
@@ -221,6 +221,11 @@
 </li>
 
                     </ul>
+                 </div>
+                 <div id="boundary-catchment-checkboxes" class="store-toggle" style="display:none; margin-top:10px;">
+                   <label><input type="checkbox" value="1km" class="catchment-checkbox"> 15min Catchment</label>
+                   <label><input type="checkbox" value="4km" class="catchment-checkbox"> 30min Catchment</label>
+                   <label><input type="checkbox" value="8km" class="catchment-checkbox"> 60min Catchment</label>
                  </div>
             </div>
              <!-- Heatmap Gradient (Grid Mode Only) -->
@@ -413,6 +418,9 @@
         const copyStoreCoverageButton = document.getElementById('btn-copy-store-coverage');
         const analysisResultsTitle = document.getElementById('analysis-results-title');
         const catchmentControls = document.getElementById('catchment-controls');
+        const catchmentRadioGroup = document.getElementById('catchment-radio-group');
+        const boundaryCatchmentContainer = document.getElementById('boundary-catchment-checkboxes');
+        const boundaryCatchmentCheckboxes = boundaryCatchmentContainer.querySelectorAll('input[type="checkbox"]');
         const heatmapControls = document.getElementById('heatmap-controls');
         const gridAnalysisControls = document.getElementById('grid-analysis-controls');
         const storeCoverageSliderContainer = document.getElementById('store-coverage-slider-container');
@@ -1183,8 +1191,9 @@ storeClickBoundaryLayer.addLayer(boundaryRect);
                                                  (currentAnalysisMode === 'boundary' && (boundaryLayer.getLayers().length === 0 || !anyADLayerHasMarkersAndIsVisible));
 
             // Plot Boundaries Button
+            const anyBoundarySizeSelected = Array.from(boundaryCatchmentCheckboxes).some(cb => cb.checked);
             plotBoundariesButton.disabled = currentAnalysisMode !== 'boundary' ||
-                                            currentGridSize === 'none' || // Cannot plot if no catchment size selected
+                                            !anyBoundarySizeSelected ||
                                             !anyADLayerHasMarkersAndIsVisible; // Cannot plot if no stores loaded or visible
         }
 
@@ -1471,10 +1480,10 @@ storeClickBoundaryLayer.addLayer(boundaryRect);
              clearAnalysisResults(); // Clear previous analysis
              clearStoreClickBoundary(); // Clear temporary click boundaries
 
-             const selectedCatchmentSize = document.querySelector('input[name="grid-toggle"]:checked')?.value;
-             if (!selectedCatchmentSize || selectedCatchmentSize === 'none') {
-                 alert("Please select a catchment size (15/30/60 min) before plotting boundaries.");
-                 plotBoundariesButton.disabled = true; // Always disable if no size
+             const selectedSizes = Array.from(boundaryCatchmentCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+             if (selectedSizes.length === 0) {
+                 alert("Please select at least one catchment size before plotting boundaries.");
+                 plotBoundariesButton.disabled = true;
                  return;
              }
 
@@ -1483,18 +1492,17 @@ storeClickBoundaryLayer.addLayer(boundaryRect);
                  return;
              }
 
-             // Derive KM from value (consistent with handleStoreMarkerClick)
-            let sizeKm;
-            switch (selectedCatchmentSize) {
-                case '1km': sizeKm = 1; break;
-                case '4km': sizeKm = 4; break;
-                case '8km': sizeKm = 8; break;
-                default:
-                    console.error("Invalid catchment size for plotting:", selectedCatchmentSize);
-                    return;
-            }
-
-             if (isNaN(sizeKm) || sizeKm <= 0) return; // Should not happen
+            const sizeKmValues = selectedSizes.map(val => {
+                switch(val) {
+                    case '1km': return 1;
+                    case '4km': return 4;
+                    case '8km': return 8;
+                    default:
+                        console.error('Invalid catchment size for plotting:', val);
+                        return NaN;
+                }
+            }).filter(num => !isNaN(num) && num > 0);
+            if (sizeKmValues.length === 0) return;
 
              showLoader(true);
              let plottedCount = 0;
@@ -1518,36 +1526,39 @@ else if (typeLower === 'retailstore' && map.hasLayer(bannerLayer)) isMarkerLayer
 
                      const centerLat = markerLatLng.lat;
                      const centerLng = markerLatLng.lng;
-                     const halfKm = sizeKm / 2.0;
-                     const { latDelta: latDeltaHalf, lngDelta: lngDeltaHalf } = getDegChange(halfKm, centerLat);
 
-                     // Check for valid delta calculation
-                     if (!isFinite(latDeltaHalf) || !isFinite(lngDeltaHalf) || latDeltaHalf <= 0 || lngDeltaHalf <= 0) {
-                        console.warn(`Could not calculate valid boundary for store ${storeData.storeId}`);
-                        return;
-                     }
+                     sizeKmValues.forEach(sizeKm => {
+                         const halfKm = sizeKm / 2.0;
+                         const { latDelta: latDeltaHalf, lngDelta: lngDeltaHalf } = getDegChange(halfKm, centerLat);
 
-                     const sw = [centerLat - latDeltaHalf, centerLng - lngDeltaHalf];
-                     const ne = [centerLat + latDeltaHalf, centerLng + lngDeltaHalf];
-                     const bounds = L.latLngBounds(sw, ne);
+                         // Check for valid delta calculation
+                         if (!isFinite(latDeltaHalf) || !isFinite(lngDeltaHalf) || latDeltaHalf <= 0 || lngDeltaHalf <= 0) {
+                            console.warn(`Could not calculate valid boundary for store ${storeData.storeId}`);
+                            return;
+                         }
 
-                     // Create the boundary rectangle
-                     const boundaryRect = L.rectangle(bounds, BLINKING_BOUNDARY_STYLE);
-                     boundaryRect.storeId = storeData.storeId; // Attach store ID
-                     boundaryRect.boundaryBounds = bounds; // Attach bounds for analysis
-                     boundaryLayer.addLayer(boundaryRect);
+                         const sw = [centerLat - latDeltaHalf, centerLng - lngDeltaHalf];
+                         const ne = [centerLat + latDeltaHalf, centerLng + lngDeltaHalf];
+                         const bounds = L.latLngBounds(sw, ne);
 
-                    // Apply blinking class
-try {
-   const element = boundaryRect.getElement();
-   if (element) L.DomUtil.addClass(element, 'marker-blink');
-} catch(e) {
-    console.warn(`Could not apply blinking class to boundary for store ${storeData.storeId}:`, e);
-}
+                         // Create the boundary rectangle
+                         const boundaryRect = L.rectangle(bounds, BLINKING_BOUNDARY_STYLE);
+                         boundaryRect.storeId = storeData.storeId; // Attach store ID
+                         boundaryRect.boundaryBounds = bounds; // Attach bounds for analysis
+                         boundaryLayer.addLayer(boundaryRect);
 
-                     plottedCount++;
-                 }
-             });
+                        // Apply blinking class
+                        try {
+                           const element = boundaryRect.getElement();
+                           if (element) L.DomUtil.addClass(element, 'marker-blink');
+                        } catch(e) {
+                            console.warn(`Could not apply blinking class to boundary for store ${storeData.storeId}:`, e);
+                        }
+
+                         plottedCount++;
+                     });
+                }
+            });
 
              showLoader(false);
              updateAnalysisButtonStates(); // Update analysis button state after plotting
@@ -2046,6 +2057,8 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
                 // Show/Hide UI elements relevant to Grid mode
                 plotBoundariesButton.style.display = 'none';   // Hide boundary plot button
                 catchmentControls.style.display = 'block'; // Show catchment size (used by grid)
+                catchmentRadioGroup.style.display = 'block';
+                boundaryCatchmentContainer.style.display = 'none';
                 heatmapControls.style.display = 'block';   // Show heatmap scale
                 gridAnalysisControls.style.display = 'block'; // Show centroid toggle area
                 gridSummaryContainer.style.display = 'block'; // Show summary area
@@ -2076,6 +2089,8 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
                 // Show/Hide UI elements relevant to Boundary mode
                 plotBoundariesButton.style.display = 'block';  // Show boundary plot button
                 catchmentControls.style.display = 'block'; // Show catchment size (used by boundary)
+                catchmentRadioGroup.style.display = 'none';
+                boundaryCatchmentContainer.style.display = 'block';
                 heatmapControls.style.display = 'none';    // Hide heatmap scale
                 gridAnalysisControls.style.display = 'none';  // Hide centroid toggle area
                 gridSummaryContainer.style.display = 'none';  // Hide summary area
@@ -2158,6 +2173,13 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
             radio.addEventListener('change', (event) => {
                 needsGridRegeneration = false; // Reset flag, handle directly
                 handleGridToggle(event.target.value, false); // Trigger handler
+            });
+        });
+
+        // Boundary catchment checkbox listener
+        boundaryCatchmentCheckboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                updateAnalysisButtonStates();
             });
         });
 
