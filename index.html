@@ -110,6 +110,13 @@
         }
         #btn-plot-boundaries:hover { background-color: #5a349a; }
         #btn-plot-boundaries:disabled { background-color: #a0a0a0; cursor: default; opacity: 0.7; }
+        #btn-clear-catchments {
+            background-color: #dc3545; color: white; padding: 8px 10px; border: none; border-radius: 4px; cursor: pointer;
+            text-align: center; font-size: 0.9em; transition: background-color 0.2s ease; width: 100%; box-sizing: border-box;
+            margin-top: 5px; display: none; /* Hidden by default */
+        }
+        #btn-clear-catchments:hover { background-color: #c82333; }
+        #btn-clear-catchments:disabled { background-color: #a0a0a0; cursor: default; opacity: 0.7; }
         .right-sidebar .store-toggle { margin-top: 15px; }
         .right-sidebar .store-toggle label { display: inline-block; width: auto; background-color: #eee; color: #333; padding: 5px 10px; margin-left: 5px; vertical-align: middle; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
         .right-sidebar .store-toggle input[type="checkbox"] { transform: scale(1.2); vertical-align: middle; margin-right: 5px; cursor: pointer; }
@@ -205,6 +212,7 @@
                     </ul>
                  </div>
                  <button id="btn-plot-boundaries">Plot Boundaries</button>
+                 <button id="btn-clear-catchments">Clear Catchments</button>
              </div>
              <!-- Catchment Size (Used by both modes) -->
             <div class="controls-section" id="catchment-controls">
@@ -400,6 +408,7 @@
         const loader = document.getElementById('loader');
         const analysisModeRadios = document.querySelectorAll('input[name="analysis-mode-toggle"]');
         const plotBoundariesButton = document.getElementById('btn-plot-boundaries');
+        const clearCatchmentsButton = document.getElementById('btn-clear-catchments');
         const gridToggleRadios = document.querySelectorAll('input[name="grid-toggle"]');
         const colorScaleRadios = document.querySelectorAll('input[name="color-scale-toggle"]');
         const gridSummaryContainer = document.getElementById('grid-summary-container');
@@ -1539,13 +1548,15 @@ storeClickBoundaryLayer.addLayer(boundaryRect);
                  // Check if the marker's *specific layer* is currently on the map AND if the marker itself is within view
                  let isMarkerLayerVisible = false;
                  const typeLower = (storeData.type || '').toLowerCase();
-                 if (typeLower === 'atl' && map.hasLayer(atlLayer)) isMarkerLayerVisible = true;
+                if (typeLower === 'atl' && map.hasLayer(atlLayer)) isMarkerLayerVisible = true;
 else if ((typeLower === 'fc' || typeLower === 'gate facade') && map.hasLayer(facadeLayer)) isMarkerLayerVisible = true;
 else if (typeLower === 'retailstore' && map.hasLayer(bannerLayer)) isMarkerLayerVisible = true;
 
-                 if (isMarkerLayerVisible && markerLatLng && currentMapBounds.contains(markerLatLng)) {
-                     // Ensure marker has valid data needed for the boundary
-                     if (!storeData || !storeData.storeId || !markerLatLng) return;
+                const storeToggle = document.getElementById(`toggle-${storeData.storeId}`);
+
+                if (isMarkerLayerVisible && (!storeToggle || storeToggle.checked) && markerLatLng && currentMapBounds.contains(markerLatLng)) {
+                    // Ensure marker has valid data needed for the boundary
+                    if (!storeData || !storeData.storeId || !markerLatLng) return;
 
                      const centerLat = markerLatLng.lat;
                      const centerLng = markerLatLng.lng;
@@ -2083,6 +2094,7 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
             if (newMode === 'grid') {
                 // Show/Hide UI elements relevant to Grid mode
                 plotBoundariesButton.style.display = 'none';   // Hide boundary plot button
+                clearCatchmentsButton.style.display = 'none';   // Hide clear button
                 catchmentControls.style.display = 'block'; // Show catchment size (used by grid)
                 catchmentRadioGroup.style.display = 'block';
                 boundaryCatchmentContainer.style.display = 'none';
@@ -2115,6 +2127,7 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
             } else if (newMode === 'boundary') {
                 // Show/Hide UI elements relevant to Boundary mode
                 plotBoundariesButton.style.display = 'block';  // Show boundary plot button
+                clearCatchmentsButton.style.display = 'block'; // Show clear button
                 catchmentControls.style.display = 'block'; // Show catchment size (used by boundary)
                 catchmentRadioGroup.style.display = 'none';
                 boundaryCatchmentContainer.style.display = 'block';
@@ -2263,6 +2276,12 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
         // Test Point Button Listeners
         generateTestPointsButton.addEventListener('click', generateTestPoints);
         clearTestPointsButton.addEventListener('click', clearTestPoints);
+        clearCatchmentsButton.addEventListener('click', () => {
+            boundaryCatchmentCheckboxes.forEach(cb => cb.checked = false);
+            clearBoundaries();
+            updateAnalysisButtonStates();
+            updateBoundaryHeatmapVisibility();
+        });
 
 
         // --- Map move/zoom listeners ---
@@ -2319,6 +2338,7 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
             copyStoreCoverageButton.disabled = true;
             processDataButton.disabled = true;
             plotBoundariesButton.style.display = 'none'; // Hide boundary button initially
+            clearCatchmentsButton.style.display = 'none'; // Hide clear button initially
             analyzeTestPointsButton.style.display = 'none'; // Hide test analysis button
             clearTestPointsButton.style.display = 'none'; // Hide clear test button
 
