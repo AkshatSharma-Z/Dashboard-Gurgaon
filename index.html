@@ -226,6 +226,7 @@
                    <label><input type="checkbox" value="1km" class="catchment-checkbox"> 15min Catchment</label>
                    <label><input type="checkbox" value="4km" class="catchment-checkbox"> 30min Catchment</label>
                    <label><input type="checkbox" value="8km" class="catchment-checkbox"> 60min Catchment</label>
+  <label><input type="checkbox" value="heatmap" class="catchment-checkbox"> Real Heatmap</label>
                  </div>
             </div>
              <!-- Heatmap Gradient (Grid Mode Only) -->
@@ -1197,6 +1198,17 @@ storeClickBoundaryLayer.addLayer(boundaryRect);
                                             !anyADLayerHasMarkersAndIsVisible; // Cannot plot if no stores loaded or visible
         }
 
+        function updateBoundaryHeatmapVisibility() {
+            const heatmapSelected = Array.from(boundaryCatchmentCheckboxes)
+                .some(cb => cb.checked && cb.value === 'heatmap');
+            if (heatmapSelected) {
+                showHeatmapLayer();
+            } else if (heatmapLayer && map.hasLayer(heatmapLayer)) {
+                map.removeLayer(heatmapLayer);
+                heatmapLayer = null;
+            }
+        }
+
         // --- Grid Summary Calculation (Grid Mode Only) ---
         function calculateAndDisplayGridSummary(values) {
             if (currentAnalysisMode !== 'grid') {
@@ -1492,17 +1504,28 @@ storeClickBoundaryLayer.addLayer(boundaryRect);
                  return;
              }
 
-            const sizeKmValues = selectedSizes.map(val => {
-                switch(val) {
-                    case '1km': return 1;
-                    case '4km': return 4;
-                    case '8km': return 8;
-                    default:
-                        console.error('Invalid catchment size for plotting:', val);
-                        return NaN;
-                }
-            }).filter(num => !isNaN(num) && num > 0);
-            if (sizeKmValues.length === 0) return;
+            const includesHeatmap = selectedSizes.includes('heatmap');
+            const sizeKmValues = selectedSizes
+                .filter(val => val !== 'heatmap')
+                .map(val => {
+                    switch(val) {
+                        case '1km': return 1;
+                        case '4km': return 4;
+                        case '8km': return 8;
+                        default:
+                            console.error('Invalid catchment size for plotting:', val);
+                            return NaN;
+                    }
+                })
+                .filter(num => !isNaN(num) && num > 0);
+            if (sizeKmValues.length === 0 && !includesHeatmap) return;
+
+            if (includesHeatmap) {
+                showHeatmapLayer();
+            } else if (heatmapLayer && map.hasLayer(heatmapLayer)) {
+                map.removeLayer(heatmapLayer);
+                heatmapLayer = null;
+            }
 
              showLoader(true);
              let plottedCount = 0;
@@ -1585,6 +1608,10 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
                  boundaryLayer.clearLayers();
                  updateAnalysisButtonStates(); // Update analysis button state after clearing
                  copyStoreCoverageButton.disabled = true; // Analysis results are cleared
+             }
+             if (heatmapLayer && map.hasLayer(heatmapLayer)) {
+                map.removeLayer(heatmapLayer);
+                heatmapLayer = null;
              }
         }
 
@@ -2109,6 +2136,8 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
                 centroidToggleButton.textContent = "Show (Boundary Mode)";
                 processDataButton.disabled = true; // Grid copy not applicable
 
+                updateBoundaryHeatmapVisibility();
+
                 // Analysis button depends on whether boundaries are plotted (checked by plotBoundaries/clearBoundaries) - handled by updateAnalysisButtonStates
             }
 
@@ -2180,6 +2209,7 @@ if (element && L.DomUtil.hasClass(element, 'marker-blink')) {
         boundaryCatchmentCheckboxes.forEach(cb => {
             cb.addEventListener('change', () => {
                 updateAnalysisButtonStates();
+                updateBoundaryHeatmapVisibility();
             });
         });
 
