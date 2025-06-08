@@ -219,6 +219,10 @@
   <input type="radio" id="grid-heatmap" name="grid-toggle" value="heatmap">
   <label for="grid-heatmap">Real Heatmap</label>
 </li>
+<li class="toggle-option">
+  <input type="radio" id="grid-readheatmap" name="grid-toggle" value="readheatmap">
+  <label for="grid-readheatmap">ReadHeatmap Catchment</label>
+</li>
 
                     </ul>
                  </div>
@@ -1338,8 +1342,8 @@ storeClickBoundaryLayer.addLayer(boundaryRect);
                 heatmapLayer = null;
             }
 
-            // If selected is heatmap, skip grid logic
-            if (selectedValue === 'heatmap') {
+            // If selected is heatmap or readheatmap, skip grid logic
+            if (selectedValue === 'heatmap' || selectedValue === 'readheatmap') {
                 showHeatmapLayer();
                 document.getElementById('grid-summary-container').style.display = 'none';
                 document.getElementById('btn-toggle-centroids').style.display = 'none';
