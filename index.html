@@ -10,8 +10,10 @@
   </style>
 </head>
 <body>
-  <button id="exportBtn" style="position:absolute;top:10px;left:10px;z-index:1000;">Export KML</button>
-  <button id="copyBtn" style="position:absolute;top:50px;left:10px;z-index:1000;">Copy Values</button>
+  <div id="buttonContainer" style="position:absolute;bottom:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:10px;">
+    <button id="exportBtn">Export KML</button>
+    <button id="copyBtn">Copy Values</button>
+  </div>
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
