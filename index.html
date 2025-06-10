@@ -11,6 +11,7 @@
 </head>
 <body>
   <button id="exportBtn" style="position:absolute;top:10px;left:10px;z-index:1000;">Export KML</button>
+  <button id="copyBtn" style="position:absolute;top:50px;left:10px;z-index:1000;">Copy Values</button>
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -128,6 +129,27 @@
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
+      });
+
+      document.getElementById('copyBtn').addEventListener('click', function () {
+        if (!cells || Object.keys(cells).length === 0) return;
+        var lines = [];
+        Object.keys(cells).forEach(function (key) {
+          var cell = cells[key];
+          if (cell.sum < 0.05) return;
+          lines.push(cell.lat.toFixed(6) + ',' + cell.lng.toFixed(6) + ',' + cell.sum.toFixed(2) + '%');
+        });
+        var text = lines.join('\n');
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text);
+        } else {
+          var textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
       });
     });
   </script>
