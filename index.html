@@ -39,47 +39,39 @@
 
       function updateGrid() {
         gridLayer.clearLayers();
-        var bounds = map.getBounds();
-        var south = bounds.getSouth();
-        var north = bounds.getNorth();
-        var west = bounds.getWest();
-        var east = bounds.getEast();
 
-        var baseLat = (south + north) / 2;
-        var latStep = 1 / 111; // ~1km in degrees
-        var lonStep = 1 / (111 * Math.cos(baseLat * Math.PI / 180));
+        var avgLat = orders.reduce(function (a, o) { return a + o.lat; }, 0) / orders.length;
+        var latStep = 1 / 111; // approx 1km
+        var lonStep = 1 / (111 * Math.cos(avgLat * Math.PI / 180));
 
-        for (var lat = Math.floor(south / latStep) * latStep; lat < north; lat += latStep) {
-          var nextLat = lat + latStep;
-          for (var lng = Math.floor(west / lonStep) * lonStep; lng < east; lng += lonStep) {
-            var nextLng = lng + lonStep;
-
-            var sum = 0;
-            orders.forEach(function (o) {
-              if (o.lat >= lat && o.lat < nextLat && o.lng >= lng && o.lng < nextLng) {
-                sum += o.value;
-              }
-            });
-
-            var color = 'transparent';
-            if (sum > 3) color = 'red';
-            else if (sum > 1) color = 'yellow';
-            else if (sum > 0) color = 'green';
-
-            var rect = L.rectangle([[lat, lng], [nextLat, nextLng]], {
-              color: '#555',
-              weight: 1,
-              fillColor: color,
-              fillOpacity: color === 'transparent' ? 0 : 0.5
-            }).addTo(gridLayer);
-
-            if (sum > 0) rect.bindTooltip(String(sum), { className: 'grid-label' });
+        var cells = {};
+        orders.forEach(function (o) {
+          var latIndex = Math.floor(o.lat / latStep);
+          var lngIndex = Math.floor(o.lng / lonStep);
+          var key = latIndex + ',' + lngIndex;
+          if (!cells[key]) {
+            cells[key] = { sum: 0, lat: latIndex * latStep, lng: lngIndex * lonStep };
           }
-        }
+          cells[key].sum += o.value;
+        });
+
+        Object.keys(cells).forEach(function (key) {
+          var cell = cells[key];
+          if (cell.sum <= 0) return;
+
+          var color = cell.sum > 3 ? 'red' : cell.sum > 1 ? 'yellow' : 'green';
+          var rect = L.rectangle([[cell.lat, cell.lng], [cell.lat + latStep, cell.lng + lonStep]], {
+            color: '#555',
+            weight: 1,
+            fillColor: color,
+            fillOpacity: 0.5
+          }).addTo(gridLayer);
+
+          rect.bindTooltip(String(cell.sum), { className: 'grid-label' });
+        });
       }
 
       map.whenReady(updateGrid);
-      map.on('moveend', updateGrid);
     });
   </script>
 </body>
