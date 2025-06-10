@@ -87,13 +87,14 @@
 
       document.getElementById('exportBtn').addEventListener('click', function () {
         if (!cells || Object.keys(cells).length === 0) return;
+        // KML uses AABBGGRR color format. "80" alpha gives ~50% opacity.
         var colorMap = {
-          white: 'ffffffff',
-          green: 'ff00ff00',
-          yellow: 'ff00ffff',
-          orange: 'ff00a5ff',
-          pink: 'ffcbc0ff',
-          red: 'ff0000ff'
+          white: '80ffffff',
+          green: '8000ff00',
+          yellow: '8000ffff',
+          orange: '8000a5ff',
+          pink: '80cbc0ff',
+          red: '800000ff'
         };
         var kml = '<?xml version="1.0" encoding="UTF-8"?>\n';
         kml += '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>';
@@ -101,7 +102,7 @@
           var cell = cells[key];
           if (cell.sum < 0.05) return;
           var color = getColor(cell.sum);
-          var hex = colorMap[color] || 'ffffffff';
+          var hex = colorMap[color] || '80ffffff';
           var lat1 = cell.lat;
           var lon1 = cell.lng;
           var lat2 = cell.lat + latStep;
