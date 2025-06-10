@@ -10,3 +10,5 @@ This repository contains a simple Leaflet demo that draws 1×1 km grid cells o
 * 4+ red
 
 Cells with totals below 0.05 are hidden. Values displayed on each grid are rounded to two decimals and shown with a `%` sign. The sample data includes a single order; add more points in the `orders` array inside `index.html`.
+
+Use the **Export KML** button in the top-left corner of the map to download the current grid as a KML file. The exported file will have the same name as the HTML file, but with a `.kml` extension.
