@@ -26,14 +26,6 @@
         { lat: 28.459, lng: 77.026, value: 2 } // sample order
       ];
 
-      orders.forEach(function (o) {
-        L.circleMarker([o.lat, o.lng], {
-          radius: 4,
-          color: 'blue',
-          fillColor: 'blue',
-          fillOpacity: 1
-        }).bindPopup('Value: ' + o.value).addTo(map);
-      });
 
       var gridLayer = L.layerGroup().addTo(map);
 
@@ -59,7 +51,18 @@
           var cell = cells[key];
           if (cell.sum <= 0) return;
 
-          var color = cell.sum > 3 ? 'red' : cell.sum > 1 ? 'yellow' : 'green';
+          var color;
+          if (cell.sum > 4) {
+            color = 'red';
+          } else if (cell.sum > 3) {
+            color = 'pink';
+          } else if (cell.sum > 2) {
+            color = 'orange';
+          } else if (cell.sum > 1) {
+            color = 'yellow';
+          } else {
+            color = 'green';
+          }
           var rect = L.rectangle([[cell.lat, cell.lng], [cell.lat + latStep, cell.lng + lonStep]], {
             color: '#555',
             weight: 1,
@@ -67,7 +70,8 @@
             fillOpacity: 0.5
           }).addTo(gridLayer);
 
-          rect.bindTooltip(String(cell.sum), { className: 'grid-label' });
+          var valueText = cell.sum.toFixed(2) + '%';
+          rect.bindTooltip(valueText, { className: 'grid-label' });
         });
       }
 
